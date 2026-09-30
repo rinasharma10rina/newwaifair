@@ -1,0 +1,82 @@
+[
+  {
+    "id": "deal-mattress-protector",
+    "name": "Waterproof Fitted Mattress Protector - Sleep by Wayfair",
+    "description": "Shields your mattress without giving up comfort. Soft brushed polyester top for a smooth, quiet sleep surface, plus a waterproof barrier that helps block spills, sweat, and everyday messes. Elasticized skirt fits mattresses up to 18'' deep.",
+    "category": "home",
+    "price": 7.97,
+    "imageUrl": "https://assets.wfcdn.com/im/95326293/resize-h800-w800%5Ecompr-r85/4352/435225881/Waterproof+Fitted+Mattress+Protector+-+Sleep+by+Wayfair%E2%84%A2-862711096.jpg",
+    "images": [
+      "https://assets.wfcdn.com/im/95326293/resize-h800-w800%5Ecompr-r85/4352/435225881/Waterproof+Fitted+Mattress+Protector+-+Sleep+by+Wayfair%E2%84%A2-862711096.jpg",
+      "https://assets.wfcdn.com/im/63065836/resize-h800-w800%5Ecompr-r85/1091/109103478/Waterproof+Fitted+Mattress+Protector+-+Sleep+by+Wayfair%E2%84%A2-862711096.jpg",
+      "https://assets.wfcdn.com/im/19629990/resize-h800-w800%5Ecompr-r85/1091/109103418/Waterproof+Fitted+Mattress+Protector+-+Sleep+by+Wayfair%E2%84%A2-862711096.jpg"
+    ],
+    "stock": 25,
+    "discount": 43,
+    "brand": "Sleep by Wayfair"
+  },
+  {
+    "id": "deal-cooling-gel-pillows",
+    "name": "Sleep by Wayfair Cooling Down Alternative Gel Bed Pillows (Set of 2)",
+    "description": "A 2-piece pillow set with a down-alternative gel fill that supports the head and neck through the night. Soft, breathable fabric casing, plush loft that adapts to different sleeping positions, fits standard cases, and is fully machine washable.",
+    "category": "home",
+    "price": 18.99,
+    "imageUrl": "https://assets.wfcdn.com/im/95897233/resize-h800-w800%5Ecompr-r85/4409/440974509/Cooling+Down+Alternative+Gel+Bed+Pillows+-+Sleep+by+Wayfair%E2%84%A2-1120041485.jpg",
+    "images": [
+      "https://assets.wfcdn.com/im/95897233/resize-h800-w800%5Ecompr-r85/4409/440974509/Cooling+Down+Alternative+Gel+Bed+Pillows+-+Sleep+by+Wayfair%E2%84%A2-1120041485.jpg",
+      "https://assets.wfcdn.com/im/73282379/resize-h800-w800%5Ecompr-r85/2796/279646149/Cooling+Down+Alternative+Gel+Bed+Pillows+-+Sleep+by+Wayfair%E2%84%A2-1120041485.jpg",
+      "https://assets.wfcdn.com/im/61931466/resize-h800-w800%5Ecompr-r85/2796/279646148/Cooling+Down+Alternative+Gel+Bed+Pillows+-+Sleep+by+Wayfair%E2%84%A2-1120041485.jpg"
+    ],
+    "stock": 20,
+    "discount": 49,
+    "brand": "Sleep by Wayfair"
+  },
+  {
+    "id": "deal-mattress-encasement",
+    "name": "The Twillery Co. Hypoallergenic Water Resistant Zippered Mattress Protector Encasement",
+    "description": "A zippered encasement that fully surrounds the mattress, blocking dust mites, moisture, and other irritants. Soft, breathable polyester blend that keeps the feel of the bed unchanged; noiseless, water-resistant design; machine washable.",
+    "category": "home",
+    "price": 17.99,
+    "imageUrl": "https://assets.wfcdn.com/im/45722000/resize-h800-w800%5Ecompr-r85/4399/439975048/Hypoallergenic+Water+Resistant+Zippered+Bed+Bug+Mattress+Protector-2108206817.jpg",
+    "images": [
+      "https://assets.wfcdn.com/im/45722000/resize-h800-w800%5Ecompr-r85/4399/439975048/Hypoallergenic+Water+Resistant+Zippered+Bed+Bug+Mattress+Protector-2108206817.jpg",
+      "https://assets.wfcdn.com/im/83903051/resize-h800-w800%5Ecompr-r85/3332/333260038/Hypoallergenic+Water+Resistant+Zippered+Bed+Bug+Mattress+Protector-2108206817.jpg",
+      "https://assets.wfcdn.com/im/33594897/resize-h800-w800%5Ecompr-r85/1471/147141242/Hypoallergenic+Water+Resistant+Zippered+Bed+Bug+Mattress+Protector-2108206817.jpg"
+    ],
+    "stock": 25,
+    "discount": 51,
+    "brand": "The Twillery Co."
+  },
+  {
+    "id": "deal-polyester-pillow-set",
+    "name": "Sleep by Wayfair Polyester Pillow (Set of 2)",
+    "description": "A plush 2-piece pillow set with a polyester fill and a smooth, upholstered microfiber cover. Sewn-closed construction keeps the fill in place; a versatile choice for back, side, and stomach sleepers. Includes coordinating pillowcases.",
+    "category": "home",
+    "price": 24.99,
+    "imageUrl": "https://assets.wfcdn.com/im/63221938/resize-h800-w800%5Ecompr-r85/4110/411087671/Polyester+Pillow+-+Sleep+by+Wayfair%E2%84%A2-733058121-696155198.jpg",
+    "images": [
+      "https://assets.wfcdn.com/im/63221938/resize-h800-w800%5Ecompr-r85/4110/411087671/Polyester+Pillow+-+Sleep+by+Wayfair%E2%84%A2-733058121-696155198.jpg",
+      "https://assets.wfcdn.com/im/06827740/resize-h800-w800%5Ecompr-r85/4065/406519284/Polyester+Pillow+-+Sleep+by+Wayfair%E2%84%A2-733058121-696155198.jpg",
+      "https://assets.wfcdn.com/im/45290834/resize-h800-w800%5Ecompr-r85/4002/400262043/Polyester+Pillow+-+Sleep+by+Wayfair%E2%84%A2-733058121-696155198.jpg"
+    ],
+    "stock": 25,
+    "discount": 11,
+    "brand": "Sleep by Wayfair"
+  },
+  {
+    "id": "featured-alwyn-hybrid-mattress",
+    "name": "Alwyn Home Hybrid Mattress in a Box | Medium Plush Cooling Gel Memory Foam CertiPUR-US Certified",
+    "description": "A hybrid mattress combining a supportive pocket coil system with cooling gel memory foam. Breathable construction, CertiPUR-US certified foams, and a Euro-top design. Compatible with adjustable bases; arrives compressed in a box.",
+    "category": "home",
+    "price": 158,
+    "imageUrl": "https://assets.wfcdn.com/im/59382342/resize-h800-w800%5Ecompr-r85/3478/347850509/12%22+Full+Size+Hybrid+Mattress+in+a+Box+-+Medium+Plush+Cooling+Memory+Foam+CertiPUR-US+Certified-510351529-510351531.jpg",
+    "images": [
+      "https://assets.wfcdn.com/im/59382342/resize-h800-w800%5Ecompr-r85/3478/347850509/12%22+Full+Size+Hybrid+Mattress+in+a+Box+-+Medium+Plush+Cooling+Memory+Foam+CertiPUR-US+Certified-510351529-510351531.jpg",
+      "https://assets.wfcdn.com/im/63475926/resize-h800-w800%5Ecompr-r85/3478/347850516/12%22+Full+Size+Hybrid+Mattress+in+a+Box+-+Medium+Plush+Cooling+Memory+Foam+CertiPUR-US+Certified-510351529-510351531.jpg",
+      "https://assets.wfcdn.com/im/38838733/resize-h800-w800%5Ecompr-r85/3478/347850502/12%22+Full+Size+Hybrid+Mattress+in+a+Box+-+Medium+Plush+Cooling+Memory+Foam+CertiPUR-US+Certified-510351529-510351531.jpg"
+    ],
+    "stock": 15,
+    "discount": 47,
+    "brand": "Alwyn Home"
+  }
+]

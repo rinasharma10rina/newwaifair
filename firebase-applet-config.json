@@ -1,0 +1,12 @@
+{
+  "projectId": "waifairnew",
+  "appId": "1:348813153425:web:3532a91594a89f8148db30",
+  "apiKey": "AIzaSyBDO28n99MVyjyQCSTDM7S0JWLSLM9oJ4k",
+  "authDomain": "waifairnew.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "waifairnew.firebasestorage.app",
+  "messagingSenderId": "348813153425",
+  "measurementId": "",
+  "oAuthClientId": "",
+  "recaptchaSiteKey": ""
+}

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#D97706" />
+      <stop offset="50%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#FCD34D" />
+    </linearGradient>
+  </defs>
+
+  <!-- Modern squircle rounded container -->
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#goldGrad)" stroke="#FDE68A" stroke-width="1.5" />
+
+  <!-- Distinctive bold W monogram in deep midnight slate -->
+  <path d="M13 18 L22.5 46 L32 30 L41.5 46 L51 18 L43.5 18 L37.5 35.5 L32 26 L26.5 35.5 L20.5 18 Z" 
+        fill="#020617" />
+  
+  <!-- Modern accent dot on top right corner of the W -->
+  <circle cx="51" cy="18" r="3.5" fill="#F59E0B" stroke="#020617" stroke-width="1.5" />
+</svg>

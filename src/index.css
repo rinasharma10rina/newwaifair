@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+/* Base input styling for light theme */
+input, textarea, select {
+  color: #000000;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+/* Light background inputs */
+input.bg-white,
+textarea.bg-white,
+select.bg-white {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+}
+
+/* ======================================================== */
+/* 1. SELLER CHAT & ADMIN CHAT - 100% BLACK VISIBLE TEXT     */
+/* ======================================================== */
+#seller-chat-input,
+#seller-chat-input:focus,
+#seller-chat-input:active,
+#admin-chat-input,
+#admin-chat-input:focus,
+#admin-chat-input:active {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  caret-color: #000000 !important;
+  font-weight: 500 !important;
+}
+
+#seller-chat-input::placeholder,
+#admin-chat-input::placeholder {
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+  opacity: 1 !important;
+}
+
+/* ======================================================== */
+/* 2. ADMIN DASHBOARD - 100% BLACK VISIBLE TEXT FOR ALL INPUTS */
+/* ======================================================== */
+.admin-dashboard-scope input,
+.admin-dashboard-scope textarea,
+.admin-dashboard-scope select,
+.admin-dashboard-scope input:focus,
+.admin-dashboard-scope textarea:focus,
+.admin-dashboard-scope select:focus,
+.admin-dashboard-scope input:active,
+.admin-dashboard-scope textarea:active,
+.admin-dashboard-scope select:active,
+.admin-dashboard-scope input:hover,
+.admin-dashboard-scope textarea:hover {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  caret-color: #000000 !important;
+}
+
+.admin-dashboard-scope input::placeholder,
+.admin-dashboard-scope textarea::placeholder {
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+  opacity: 1 !important;
+}
+
+.admin-dashboard-scope input:-webkit-autofill,
+.admin-dashboard-scope textarea:-webkit-autofill {
+  -webkit-text-fill-color: #000000 !important;
+  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+}
+
+/* ======================================================== */
+/* 3. ONLY GENUINE DARK INPUTS GET CRISP WHITE TEXT         */
+/* ======================================================== */
+input.text-white,
+textarea.text-white,
+select.text-white,
+input[class*="text-white"],
+textarea[class*="text-white"],
+input.dark-input,
+textarea.dark-input,
+input.bg-slate-900,
+input.bg-slate-950,
+textarea.bg-slate-900,
+textarea.bg-slate-950,
+input[class*="bg-slate-9"],
+textarea[class*="bg-slate-9"],
+input[class*="bg-zinc-9"],
+textarea[class*="bg-zinc-9"],
+input[class*="bg-black"],
+textarea[class*="bg-black"],
+#seller-invite-code-input {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Placeholders for dark inputs */
+input.text-white::placeholder,
+textarea.text-white::placeholder,
+input[class*="text-white"]::placeholder,
+textarea[class*="text-white"]::placeholder,
+input.dark-input::placeholder,
+textarea.dark-input::placeholder,
+#seller-invite-code-input::placeholder {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+  opacity: 1;
+}
+
+/* WebKit autofill text color override for dark inputs */
+input.text-white:-webkit-autofill,
+input[class*="text-white"]:-webkit-autofill,
+input.dark-input:-webkit-autofill,
+#seller-invite-code-input:-webkit-autofill {
+  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0px 1000px #0f172a inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+input.bg-white:-webkit-autofill,
+select.bg-white:-webkit-autofill {
+  -webkit-text-fill-color: #000000 !important;
+}

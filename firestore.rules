@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    // 1. Products catalog
+    match /products/{productId} {
+      allow read, write: if isValidId(productId);
+    }
+
+    // 2. Categories catalog
+    match /categories/{categoryId} {
+      allow read, write: if isValidId(categoryId);
+    }
+
+    // 3. Customer & Seller Orders
+    match /orders/{orderId} {
+      allow read, write: if isValidId(orderId);
+    }
+
+    // 4. Seller Profiles & Verification
+    match /sellers/{sellerId} {
+      allow read, write: if isValidId(sellerId);
+    }
+
+    // 5. Seller Wallets & Real-time Balance
+    match /wallets/{walletId} {
+      allow read, write: if isValidId(walletId);
+    }
+
+    // 6. Seller Withdrawals
+    match /withdrawals/{withdrawalId} {
+      allow read, write: if isValidId(withdrawalId);
+    }
+
+    // 7. Support & Customer Chat Messages
+    match /chat_messages/{messageId} {
+      allow read, write: if isValidId(messageId);
+    }
+
+    // 8. Support Conversations Threads & Chats
+    match /conversations/{convId} {
+      allow read, write: if isValidId(convId);
+    }
+
+    // 8b. Real-time Seller-Admin Chats & Messages Subcollection
+    match /chats/{chatId} {
+      allow read, write: if isValidId(chatId);
+      match /messages/{messageId} {
+        allow read, write: if true;
+      }
+    }
+
+    // 9. Notifications
+    match /notifications/{notifId} {
+      allow read, write: if isValidId(notifId);
+    }
+
+    // 10. Store Settings & Footer Contacts
+    match /settings/{docId} {
+      allow read, write: if isValidId(docId);
+    }
+
+    // 11. Platform Admin Security & Credentials
+    match /platform_security/{docId} {
+      allow read, write: if isValidId(docId);
+    }
+
+    // 12. Seller Login Sessions
+    match /seller_login_sessions/{sessionId} {
+      allow read, write: if isValidId(sessionId);
+    }
+
+    // 13. Fallback for any subcollections or additional documents
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+

@@ -1,0 +1,178 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A store catalog product managed by the admin and linked to Firebase",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "sku": { "type": "string" },
+        "description": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "categoryName": { "type": "string" },
+        "price": { "type": "number" },
+        "originalPrice": { "type": "number" },
+        "stock": { "type": "number" },
+        "images": { "type": "array" },
+        "status": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "featured": { "type": "boolean" },
+        "sellerCommission": { "type": "number" },
+        "customAdminCommissionPct": { "type": "number" },
+        "associatedSellerIds": { "type": "array" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "price", "status"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Store department category for organizing products on the storefront",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "iconName": { "type": "string" },
+        "itemCount": { "type": "number" }
+      },
+      "required": ["id", "name", "slug"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase order placed on Waifair",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "status": { "type": "string" },
+        "total": { "type": "number" }
+      },
+      "required": ["id", "status"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Live support chat message exchanged between merchant seller and platform admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "conversationId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderRole": { "type": "string" },
+        "text": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "isRead": { "type": "boolean" }
+      },
+      "required": ["id", "conversationId", "senderId", "senderRole"]
+    },
+    "Seller": {
+      "title": "Seller",
+      "description": "Seller profile and store verification record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "shopName": { "type": "string" },
+        "sellerName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "password": { "type": "string" },
+        "documentType": { "type": "string" },
+        "verificationStatus": { "type": "string" },
+        "applicationStatus": { "type": "string" },
+        "walletBalance": { "type": "number" }
+      },
+      "required": ["id", "shopName", "sellerName", "email"]
+    },
+    "PlatformSecurity": {
+      "title": "PlatformSecurity",
+      "description": "Platform administrator security and authentication record",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "passwordHash": { "type": "string" },
+        "salt": { "type": "string" },
+        "pinHash": { "type": "string" },
+        "pinSalt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "securityVersion": { "type": "string" }
+      },
+      "required": ["email"]
+    },
+    "Wallet": {
+      "title": "Wallet",
+      "description": "Seller wallet balance and earnings record",
+      "type": "object",
+      "properties": {
+        "sellerId": { "type": "string" },
+        "availableBalance": { "type": "number" },
+        "pendingBalance": { "type": "number" },
+        "totalEarnings": { "type": "number" },
+        "totalWithdrawn": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["sellerId"]
+    },
+    "Withdrawal": {
+      "title": "Withdrawal",
+      "description": "Seller payout and withdrawal requests submitted to platform admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "sellerName": { "type": "string" },
+        "sellerEmail": { "type": "string" },
+        "amount": { "type": "number" },
+        "method": { "type": "string" },
+        "payoutAccount": { "type": "string" },
+        "sellerNote": { "type": "string" },
+        "adminNote": { "type": "string" },
+        "status": { "type": "string" },
+        "requestedAt": { "type": "string" },
+        "processedAt": { "type": "string" }
+      },
+      "required": ["id", "sellerId", "amount", "status"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Collection of all live marketplace products"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Collection of store product categories"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders collection"
+    },
+    "/chat_messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Collection of live chat messages synchronized between seller and admin"
+    },
+    "/sellers/{sellerId}": {
+      "schema": "Seller",
+      "description": "Collection of seller profiles and identity records"
+    },
+    "/wallets/{sellerId}": {
+      "schema": "Wallet",
+      "description": "Collection of seller wallet balances"
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": "Withdrawal",
+      "description": "Collection of seller withdrawal requests"
+    },
+    "/platform_security/{docId}": {
+      "schema": "PlatformSecurity",
+      "description": "Admin authentication and security credentials"
+    }
+  }
+}
