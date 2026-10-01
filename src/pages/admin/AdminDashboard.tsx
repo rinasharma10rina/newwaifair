@@ -385,6 +385,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const [orderStatusChangeVal, setOrderStatusChangeVal] = useState<OrderStatus>('PENDING');
   const [orderStatusChangeNote, setOrderStatusChangeNote] = useState<string>('');
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  // Customer info for admin-created orders (so real emails show instead of placeholder)
+  const [adminOrderCustomer, setAdminOrderCustomer] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    street: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: 'USA',
+  });
 
   // Draggable Floating Cart State & Handlers
   const [cartPos, setCartPos] = useState<{ x: number; y: number } | null>(() => {
@@ -1140,20 +1151,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       return;
     }
 
+    // Validate customer info — admin must enter real customer details
+    const cleanCustName = adminOrderCustomer.fullName.trim();
+    const cleanCustEmail = adminOrderCustomer.email.trim().toLowerCase();
+    if (!cleanCustName || !cleanCustEmail || !cleanCustEmail.includes('@')) {
+      triggerToast('Please enter the real customer name and valid email address before assigning the order.');
+      return;
+    }
+
     // Automatically approve seller so they are never blocked by awaiting approval
     approveSellerApplication(sellerId);
 
     const newOrder = createOrder({
       shippingAddress: {
-        fullName: 'Customer Order',
-        email: 'customer@nexus.store',
-        phone: '+1 (555) 019-2834',
-        street: '742 Evergreen Terrace',
-        city: 'Springfield',
-        state: 'IL',
-        postalCode: '62704',
-        zipCode: '62704',
-        country: 'USA',
+        fullName: cleanCustName,
+        email: cleanCustEmail,
+        phone: adminOrderCustomer.phone.trim() || '+1 (555) 000-0000',
+        street: adminOrderCustomer.street.trim() || 'Address on file',
+        city: adminOrderCustomer.city.trim() || 'N/A',
+        state: adminOrderCustomer.state.trim() || 'N/A',
+        postalCode: adminOrderCustomer.postalCode.trim() || '00000',
+        zipCode: adminOrderCustomer.postalCode.trim() || '00000',
+        country: adminOrderCustomer.country.trim() || 'USA',
       },
       paymentMethod: 'ADMIN_ASSIGNED',
       notes: `Order created by Admin & assigned to ${targetEmail || matchedSeller?.shopName || 'Seller'}`,
@@ -1166,6 +1185,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
         assignOrderToSeller(newOrder.id, sellerId);
       }
       triggerToast(`Order #${newOrder.id} created & assigned to ${targetEmail || matchedSeller?.shopName || 'Seller'}!`);
+      // Reset customer form
+      setAdminOrderCustomer({
+        fullName: '',
+        email: '',
+        phone: '',
+        street: '',
+        city: '',
+        state: '',
+        postalCode: '',
+        country: 'USA',
+      });
       setIsCartOpen(false);
     }
   };
@@ -6796,6 +6826,64 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                     <div className="border-t border-slate-200 pt-2 flex justify-between items-center">
                       <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Total Amount:</span>
                       <span className="text-base font-extrabold text-[#0284C7]">${cartSubtotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* Customer Details for Admin-created Order */}
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                      <span>Customer Details (Required)</span>
+                      <span className="text-[10px] text-rose-600 font-semibold">Real email needed</span>
+                    </div>
+                    <input
+                      type="text"
+                      value={adminOrderCustomer.fullName}
+                      onChange={(e) => setAdminOrderCustomer({ ...adminOrderCustomer, fullName: e.target.value })}
+                      placeholder="Customer Full Name *"
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-black font-medium focus:outline-none focus:border-[#0284C7]"
+                      style={{ color: '#000000', WebkitTextFillColor: '#000000' }}
+                    />
+                    <input
+                      type="email"
+                      value={adminOrderCustomer.email}
+                      onChange={(e) => setAdminOrderCustomer({ ...adminOrderCustomer, email: e.target.value })}
+                      placeholder="Customer Real Email Address *"
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-black font-medium focus:outline-none focus:border-[#0284C7]"
+                      style={{ color: '#000000', WebkitTextFillColor: '#000000' }}
+                    />
+                    <input
+                      type="tel"
+                      value={adminOrderCustomer.phone}
+                      onChange={(e) => setAdminOrderCustomer({ ...adminOrderCustomer, phone: e.target.value })}
+                      placeholder="Customer Phone (Optional)"
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-black font-medium focus:outline-none focus:border-[#0284C7]"
+                      style={{ color: '#000000', WebkitTextFillColor: '#000000' }}
+                    />
+                    <input
+                      type="text"
+                      value={adminOrderCustomer.street}
+                      onChange={(e) => setAdminOrderCustomer({ ...adminOrderCustomer, street: e.target.value })}
+                      placeholder="Street Address (Optional)"
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-black font-medium focus:outline-none focus:border-[#0284C7]"
+                      style={{ color: '#000000', WebkitTextFillColor: '#000000' }}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={adminOrderCustomer.city}
+                        onChange={(e) => setAdminOrderCustomer({ ...adminOrderCustomer, city: e.target.value })}
+                        placeholder="City"
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-black font-medium focus:outline-none focus:border-[#0284C7]"
+                        style={{ color: '#000000', WebkitTextFillColor: '#000000' }}
+                      />
+                      <input
+                        type="text"
+                        value={adminOrderCustomer.country}
+                        onChange={(e) => setAdminOrderCustomer({ ...adminOrderCustomer, country: e.target.value })}
+                        placeholder="Country"
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-black font-medium focus:outline-none focus:border-[#0284C7]"
+                        style={{ color: '#000000', WebkitTextFillColor: '#000000' }}
+                      />
                     </div>
                   </div>
 

@@ -353,23 +353,13 @@ export const SellerSupportChatPage: React.FC<SellerSupportChatPageProps> = ({ on
           </div>
         )}
 
-        {/* Admin Quick Verification Switcher (if viewed by admin role) */}
+        {/* Admin Quick Verification Switcher (if viewed by admin role) — No auto message */}
         {isPending && currentUser.role === 'ADMIN' && (
           <div className="bg-slate-900 text-slate-200 px-3 py-1.5 flex items-center justify-between text-[11px] shrink-0 border-b border-slate-800">
             <span className="text-slate-300">Status: <b className="text-amber-400">PENDING APPROVAL</b></span>
             <button
               onClick={() => {
                 updateSellerStatus(currentSeller.id, 'APPROVED');
-                sendMessage(
-                  activeConv.id,
-                  '🎉 Congratulations! Your store has been verified and approved. You can now access your full seller dashboard.',
-                  undefined,
-                  {
-                    senderId: 'user_admin',
-                    senderName: 'Merchant Support Team',
-                    senderRole: 'ADMIN',
-                  }
-                );
               }}
               className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[10px] cursor-pointer transition-colors shadow-2xs"
             >

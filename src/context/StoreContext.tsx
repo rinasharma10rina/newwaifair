@@ -2441,7 +2441,7 @@ const registerCustomer = (name: string, email: string, phone: string): User => {
     setSessionNotice(null);
     setCurrentUser(sellerUser);
 
-    // Initialize support conversation with initial message
+    // Initialize support conversation thread (NO auto message — admin will send manually)
     const convId = `conv_${sellerUser.id}`;
     const newConv: Conversation = {
       id: convId,
@@ -2452,29 +2452,14 @@ const registerCustomer = (name: string, email: string, phone: string): User => {
       participantTwoId: 'user_admin',
       participantTwoName: 'Customer Care & Admin',
       participantTwoRole: 'ADMIN',
-      lastMessageText: 'How can I help you?',
+      lastMessageText: '',
       lastMessageTime: new Date().toISOString(),
-      unreadCountParticipantOne: 1,
+      unreadCountParticipantOne: 0,
       unreadCountParticipantTwo: 0,
     };
     setConversations((prev) => {
       const exists = prev.some((c) => c.participantOneId === sellerUser.id);
       return exists ? prev : [newConv, ...prev];
-    });
-
-    const initMsg: Message = {
-      id: `msg_init_${Date.now()}`,
-      conversationId: convId,
-      senderId: 'user_admin',
-      senderName: 'Customer Care & Admin',
-      senderRole: 'ADMIN',
-      text: `Hello ${sellerName}! Your store application for "${shopName}" has been submitted and is currently pending verification by store administration. Please wait here in Support Chat; our team will review your application and approve your store shortly. You can also chat with us here anytime!`,
-      timestamp: new Date().toISOString(),
-      isRead: false,
-    };
-    setMessages((prev) => {
-      const exists = prev.some((m) => m.conversationId === convId);
-      return exists ? prev : [...prev, initMsg];
     });
 
     addNotification(
@@ -2907,23 +2892,7 @@ const registerCustomer = (name: string, email: string, phone: string): User => {
             '/seller/dashboard'
           );
 
-          // Also inject approval message into support chat
-          const conv = conversations.find(
-            (c) => c.participantOneId === s.userId || c.participantTwoId === s.userId
-          );
-          if (conv) {
-            const approvalMsg: Message = {
-              id: `msg_approved_${Date.now()}`,
-              conversationId: conv.id,
-              senderId: 'user_admin',
-              senderName: 'Customer Care & Admin',
-              senderRole: 'ADMIN',
-              text: `🎉 Congratulations! Your store "${s.shopName}" and identity documents have been officially verified and approved. You can now access all seller features and receive orders.`,
-              timestamp: new Date().toISOString(),
-              isRead: false,
-            };
-            setMessages((prevMsgs) => [...prevMsgs, approvalMsg]);
-          }
+          // (Auto approval chat message removed — Admin will send manually if needed)
 
           // Sync status update to Firestore
           updateSellerVerificationInFirestore(sellerId, 'approved').catch((err) =>
@@ -3029,23 +2998,7 @@ const registerCustomer = (name: string, email: string, phone: string): User => {
       '/seller-support'
     );
 
-    // 5. Inject freeze notice directly into support chat
-    const conv = conversations.find(
-      (c) => c.participantOneId === userId || c.participantTwoId === userId || c.id === sellerId || c.id === userId
-    );
-    const targetConvId = conv?.id || `conv_${sellerId}`;
-    const freezeMsg: Message = {
-      id: `msg_frozen_${Date.now()}`,
-      conversationId: targetConvId,
-      senderId: 'user_admin',
-      senderName: 'Customer Care & Company',
-      senderRole: 'ADMIN',
-      text: `⚠️ Your store has been frozen by Company. Please contact Customer Care for assistance.`,
-      timestamp: new Date().toISOString(),
-      isRead: false,
-    };
-    setMessages((prevMsgs) => [...prevMsgs, freezeMsg]);
-    syncMessageToFirestore(freezeMsg);
+    // (Auto freeze chat message removed — Admin will send manually if needed)
 
     // 6. Sync freeze state to Firestore (collection: sellers)
     updateSellerFreezeStatusInFirestore(sellerId, true, cleanReason).catch((err) =>
@@ -3115,25 +3068,7 @@ const registerCustomer = (name: string, email: string, phone: string): User => {
       '/seller/dashboard'
     );
 
-    // 5. Inject unfreeze notice into support chat (using canonical seller conversation)
-    const targetConv = startOrGetSupportConversation(
-      targetSeller?.userId || userId || sellerId,
-      targetSeller?.shopName || targetSeller?.sellerName,
-      'SELLER'
-    );
-    const targetConvId = targetConv.id;
-    const unfreezeMsg: Message = {
-      id: `msg_unfrozen_${Date.now()}`,
-      conversationId: targetConvId,
-      senderId: 'user_admin',
-      senderName: 'Customer Care & Company',
-      senderRole: 'ADMIN',
-      text: `🎉 Your store has been unfrozen by Company! Your dashboard is now fully unlocked and all services are restored.`,
-      timestamp: new Date().toISOString(),
-      isRead: false,
-    };
-    setMessages((prevMsgs) => [...prevMsgs, unfreezeMsg]);
-    syncMessageToFirestore(unfreezeMsg);
+    // (Auto unfreeze chat message removed — Admin will send manually if needed)
 
     // 6. Sync unfreeze to Firestore
     updateSellerFreezeStatusInFirestore(sellerId, false).catch((err) =>
