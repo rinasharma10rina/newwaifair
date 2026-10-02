@@ -1,3 +1,4 @@
+import { useChatAutoScroll } from '../../hooks/useChatAutoScroll';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore } from '../../context/StoreContext';
 import {
@@ -337,6 +338,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const [liveChatMessages, setLiveChatMessages] = useState<any[]>([]);
   const adminTextareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Admin ka main chat box hamesha latest msg pe rakhne ke liye hook
+  const mainChatScroll = useChatAutoScroll(
+    messages.length + liveChatMessages.length,
+    activeConvId,
+    activeTab === 'conversations' && Boolean(activeConvId)
+  );
+
   // Auto-resize admin textarea dynamically up to 130px
   useEffect(() => {
     if (adminTextareaRef.current) {
@@ -349,6 +357,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   // Subscribe to real-time chat messages subcollection for active conversation
   useEffect(() => {
     if (!activeConvId) return;
+    setLiveChatMessages([]); // purani thread ke msgs saaf karo, warna ek pal ke liye dikhte hain
     const conv = conversations.find((c) => c.id === activeConvId);
     const sellerId =
       conv?.participantOneRole === 'SELLER'
@@ -943,7 +952,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const handleDeleteAndResetChat = (convId: string) => {
     const targetConv = unifiedConversations.find((c) => c.id === convId || (c as any).allConvIds?.includes(convId));
     if (targetConv && (targetConv as any).allConvIds && (targetConv as any).allConvIds.length > 0) {
-      (targetConv as any).allConvIds.forEach((id: string) => deleteConversationAndReset(id));
+      const idsToWipe = new Set<string>(
+        [
+          ...(targetConv as any).allConvIds,
+          (targetConv as any).sellerMatch?.id,
+          (targetConv as any).sellerMatch?.userId,
+        ].filter(Boolean) as string[]
+      );
+      idsToWipe.forEach((id: string) => deleteConversationAndReset(id));
     } else {
       deleteConversationAndReset(convId);
     }
@@ -952,7 +968,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   };
 
   const handleDeleteSingleMsg = (msgId: string) => {
-    deleteSingleMessage(msgId, activeConvId || undefined);
+    // Seller ke saare possible chat-IDs jama karo (jaise display mein karte hain), taake har jagah se delete ho
+    const convForDelete = unifiedConversations.find(
+      (c) => c.id === activeConvId || (c as any).allConvIds?.includes(activeConvId)
+    ) as any;
+    const idsToClean = new Set<string>(
+      [
+        activeConvId,
+        ...(convForDelete?.allConvIds || []),
+        convForDelete?.sellerMatch?.id,
+        convForDelete?.sellerMatch?.userId,
+      ].filter(Boolean) as string[]
+    );
+    if (idsToClean.size === 0) {
+      deleteSingleMessage(msgId);
+    } else {
+      idsToClean.forEach((id) => deleteSingleMessage(msgId, id));
+    }
     triggerToast('Message deleted');
   };
 
@@ -1013,6 +1045,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const [adminFloatingChatImage, setAdminFloatingChatImage] = useState<string | null>(null);
   const adminFloatingFileRef = useRef<HTMLInputElement>(null);
   const adminFloatingMessagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Floating chat ko latest msg pe rakhne ke liye hook
+  const floatingChatScroll = useChatAutoScroll(
+    messages.length + liveChatMessages.length,
+    activeConvId,
+    isAdminFloatingChatOpen
+  );
   const adminFloatingTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleRefreshData = async () => {
@@ -4188,6 +4227,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
                         {/* WhatsApp Chat Area with Doodle Wallpaper (Only messages scroll) */}
                         <div
+                          ref={mainChatScroll.containerRef}
+                          onScroll={mainChatScroll.onScroll}
                           className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3.5 sm:p-4 space-y-2.5"
                           style={{
                             backgroundColor: '#efeae2',
@@ -4243,10 +4284,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                                       {msg.imageUrl && (
                                         <div className="mb-1.5 rounded-xl overflow-hidden max-w-[280px] bg-slate-100">
                                           <img
-                                            src={msg.imageUrl}
-                                            alt="Attachment"
-                                            className="max-h-64 w-full object-cover"
-                                          />
+                                          src={msg.imageUrl}
+                                          alt="Attachment"
+                                          onLoad={mainChatScroll.onMediaLoad}
+                                          className="max-h-64 w-full object-cover"
+                                        />  
                                         </div>
                                       )}
 
@@ -7127,6 +7169,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
             {/* Scrollable Messages Area (ONLY messages scroll!) */}
             <div
+              ref={floatingChatScroll.containerRef}
+              onScroll={floatingChatScroll.onScroll}
               className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 space-y-2"
               style={{
                 backgroundColor: '#efeae2',
@@ -7207,8 +7251,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                           {isAdmin ? 'You (Admin)' : getParticipantShop(currentFloatingConv)}
                         </p>
                         {msg.imageUrl && (
-                          <div className="mb-1 rounded-lg overflow-hidden max-w-[220px] bg-slate-100">
-                            <img src={msg.imageUrl} alt="attachment" className="w-full h-auto object-cover max-h-48" />
+                          <div className="mb-1 rounded-lg overflow-hidden max-w-[220px] bg-slate-100"><img src={msg.imageUrl} alt="attachment" onLoad={floatingChatScroll.onMediaLoad} className="w-full h-auto object-cover max-h-48" />
                           </div>
                         )}
                         {msg.text && (

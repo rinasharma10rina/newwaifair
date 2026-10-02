@@ -15,7 +15,9 @@ import {
   Calendar,
 } from 'lucide-react';
 import { StatusBadge } from '../../components/common/Badge';
+import { useChatAutoScroll } from '../../hooks/useChatAutoScroll';
 import { Order, OrderStatus } from '../../types';
+
 
 export const CustomerPortal: React.FC = () => {
   const {
@@ -39,6 +41,13 @@ export const CustomerPortal: React.FC = () => {
   // Active support conversation
   const supportConv = startOrGetSupportConversation(currentUser.id, currentUser.name, 'CUSTOMER');
   const supportMessages = messages.filter((m) => m.conversationId === supportConv.id);
+
+  // Customer support chat ko latest msg pe rakhne ke liye hook
+  const { containerRef, onScroll } = useChatAutoScroll(
+    supportMessages.length,
+    supportConv.id,
+    activeTab === 'support'
+  );
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,7 +234,7 @@ export const CustomerPortal: React.FC = () => {
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-950/60">
+          <div ref={containerRef} onScroll={onScroll} className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-950/60">
             {supportMessages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 p-6">
                 <MessageSquare className="w-10 h-10 text-slate-600 mb-2" />

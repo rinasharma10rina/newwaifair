@@ -1,3 +1,4 @@
+import { useChatAutoScroll } from '../../hooks/useChatAutoScroll';
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../context/StoreContext';
 import {
@@ -136,10 +137,11 @@ export const SellerSupportChatPage: React.FC<SellerSupportChatPageProps> = ({ on
     );
   }, [messages, activeConv.id, sellerIdentifier, currentSeller?.id, realtimeMessages]);
 
-  // Auto-scroll on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [conversationMessages, isAgentTyping]);
+  // Chat ko hamesha latest msg pe rakhne ke liye hook
+  const { containerRef, onScroll, onMediaLoad } = useChatAutoScroll(
+    conversationMessages.length + (isAgentTyping ? 1 : 0),
+    activeConv.id
+  );
 
   // Mark as read when entering
   useEffect(() => {
@@ -372,6 +374,8 @@ export const SellerSupportChatPage: React.FC<SellerSupportChatPageProps> = ({ on
         {/* 3. WHATSAPP CHAT AREA WITH DOODLE WALLPAPER               */}
         {/* ========================================================= */}
         <div
+          ref={containerRef}
+          onScroll={onScroll}
           className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-4 space-y-2.5 overscroll-contain"
           style={{
             backgroundColor: '#efeae2',
@@ -413,7 +417,10 @@ export const SellerSupportChatPage: React.FC<SellerSupportChatPageProps> = ({ on
                     <div className="mb-1.5 rounded-xl overflow-hidden max-w-[280px] bg-slate-100">
                       <img
                         src={msg.imageUrl}
-                        alt="Attached media"
+                        ref={containerRef}
+          onScroll={onScroll}
+  alt="Attached media"
+                        onLoad={onMediaLoad}
                         className="w-full h-auto object-cover max-h-72"
                       />
                     </div>
