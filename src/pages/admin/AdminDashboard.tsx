@@ -757,16 +757,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     const seller = sellers.find(
       (s) =>
         s.userId === targetId ||
-        s.id === targetId ||
-        (s.email && (conv.participantOneName || '').toLowerCase().includes((s.sellerName || '').toLowerCase()))
+        s.id === targetId
     );
     if (seller && seller.email) return seller.email;
-    const user = users.find((u) => u.id === targetId || u.name === conv.participantOneName);
+    const user = users.find((u) => u.id === targetId);
     if (user && user.email) return user.email;
-    const clean = (conv.participantOneName || 'seller')
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
-    return `${clean || 'seller'}@gmail.com`;
+    // Do NOT generate fake emails — return the raw ID or empty marker
+    return '';
   };
 
   const getParticipantShop = (conv: any): string => {
@@ -830,6 +827,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     >();
 
     conversations.forEach((conv) => {
+      // 🛡️ Skip corrupted bogus convs
+      if (
+        conv.participantOneId === conv.participantTwoId ||
+        (conv.participantOneRole === 'ADMIN' && conv.participantTwoRole === 'ADMIN') ||
+        (conv.participantOneId === 'user_admin' && conv.participantTwoId === 'user_admin') ||
+        conv.id === 'user_admin' ||
+        conv.id === 'admin'
+      ) return;
+
       const targetId = conv.participantTwoRole === 'ADMIN' ? conv.participantOneId : conv.participantTwoId;
       const cleanTargetId = (targetId || '').replace(/^conv_/, '');
       const cleanConvId = (conv.id || '').replace(/^conv_/, '');
@@ -844,13 +850,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           s.userId === conv.id ||
           s.id === cleanConvId ||
           s.userId === cleanConvId ||
-          (s.email && getParticipantEmail(conv).toLowerCase() === s.email.toLowerCase()) ||
-          (s.shopName && (conv.participantOneName || '').toLowerCase().includes(s.shopName.toLowerCase())) ||
-          (s.sellerName && (conv.participantOneName || '').toLowerCase().includes(s.sellerName.toLowerCase()))
+          (s.email && getParticipantEmail(conv).toLowerCase() === s.email.toLowerCase())
       );
 
       const groupKey = seller
-        ? `seller_${seller.id || seller.userId}`
+        ? `seller_${seller.userId || seller.id}`
         : `email_${getParticipantEmail(conv).toLowerCase()}`;
 
       const existing = sellerGroupMap.get(groupKey);
@@ -858,12 +862,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
         sellerGroupMap.set(groupKey, {
           primaryConv: {
             ...conv,
+            // 🛡️ NORMALIZE: prefer seller.userId as the canonical conv id
+            // so admin replies always land in the SAME Firestore thread the seller writes to.
+            id: seller?.userId || conv.id,
+            participantOneId: seller?.userId || seller?.id || conv.participantOneId,
             participantOneName: seller?.shopName || conv.participantOneName,
+            participantOneRole: 'SELLER',
           },
           allConvIds: new Set(
-            [conv.id, cleanConvId, `conv_${cleanConvId}`, targetId, cleanTargetId, `conv_${cleanTargetId}`].filter(
-              Boolean
-            ) as string[]
+            [
+              conv.id,
+              cleanConvId,
+              `conv_${cleanConvId}`,
+              targetId,
+              cleanTargetId,
+              `conv_${cleanTargetId}`,
+              seller?.id,
+              seller?.userId,
+              seller?.id ? `conv_${seller.id}` : undefined,
+              seller?.userId ? `conv_${seller.userId}` : undefined,
+            ].filter(Boolean) as string[]
           ),
           sellerMatch: seller,
         });
@@ -926,7 +944,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const handleSendAdminMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!adminChatInput.trim() || !activeConvId) return;
-    sendMessage(activeConvId, adminChatInput.trim(), undefined, {
+
+    // 🛡️ Resolve the REAL seller chat id from the unified conversation
+    const currentUnifiedConv = unifiedConversations.find(
+      (c) => c.id === activeConvId || (c as any).allConvIds?.includes(activeConvId)
+    );
+    const resolvedSellerId =
+      (currentUnifiedConv as any)?.sellerMatch?.userId ||
+      (currentUnifiedConv as any)?.sellerMatch?.id ||
+      currentUnifiedConv?.participantOneId ||
+      activeConvId;
+
+    sendMessage(resolvedSellerId, adminChatInput.trim(), undefined, {
       senderId: 'user_admin',
       senderName: 'Platform Support Team',
       senderRole: 'ADMIN',
@@ -1074,13 +1103,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     const textToSend = adminFloatingChatInput.trim();
     if (!textToSend && !adminFloatingChatImage) return;
 
-    const currentConv = conversations.find((c) => c.id === activeConvId) || conversations[0];
-    if (!currentConv) {
+    const currentUnifiedConv = unifiedConversations.find(
+      (c) => c.id === activeConvId || (c as any).allConvIds?.includes(activeConvId)
+    ) || unifiedConversations[0];
+
+    if (!currentUnifiedConv) {
       triggerToast('Please select a seller conversation first.');
       return;
     }
 
-    sendMessage(currentConv.id, textToSend, adminFloatingChatImage || undefined, {
+    const resolvedSellerId =
+      (currentUnifiedConv as any)?.sellerMatch?.userId ||
+      (currentUnifiedConv as any)?.sellerMatch?.id ||
+      currentUnifiedConv.participantOneId ||
+      currentUnifiedConv.id;
+
+    sendMessage(resolvedSellerId, textToSend, adminFloatingChatImage || undefined, {
       senderId: 'user_admin',
       senderName: 'Customer Care & Admin',
       senderRole: 'ADMIN',
@@ -4077,7 +4115,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                               <div className="flex items-center justify-between gap-1 mt-0.5">
                                 <span className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1">
                                   <Mail className="w-3 h-3 text-slate-400 shrink-0" />
-                                  <span className="truncate text-slate-600 font-semibold">{participantEmail}</span>
+                                  <span className="truncate text-slate-600 font-semibold">
+                                    {participantEmail || '—'}
+                                  </span>
                                 </span>
 
                                 {/* Unread badge next to Gmail */}
@@ -4871,7 +4911,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {customerUsers.map((cust) => {
+                      {customerUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-12 text-center text-slate-400">
+                            <div className="flex flex-col items-center gap-2">
+                              <Users className="w-8 h-8 text-slate-300" />
+                              <p className="font-semibold text-xs text-slate-500">No customers registered yet</p>
+                              <p className="text-[11px] text-slate-400 max-w-xs">
+                                When a customer registers or places an order on the storefront, their profile will appear here automatically.
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : customerUsers.map((cust) => {
                         const custOrders = orders.filter((o) => (o.shippingAddress?.fullName || '').toLowerCase() === (cust.name || '').toLowerCase());
                         return (
                           <tr key={cust.id} className="hover:bg-slate-50/80">
@@ -4903,7 +4955,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
                 {/* Mobile Cards View */}
                 <div className="md:hidden divide-y divide-slate-100">
-                  {customerUsers.map((cust) => {
+                  {customerUsers.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400">
+                      <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                      <p className="font-semibold text-xs text-slate-500">No customers registered yet</p>
+                    </div>
+                  ) : customerUsers.map((cust) => {
                     const custOrders = orders.filter((o) => (o.shippingAddress?.fullName || '').toLowerCase() === (cust.name || '').toLowerCase());
                     return (
                       <div key={cust.id} className="p-3.5 space-y-2.5 bg-white">

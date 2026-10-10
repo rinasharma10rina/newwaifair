@@ -52,7 +52,11 @@ export const CustomerPortal: React.FC = () => {
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
-    sendMessage(supportConv.id, chatInput.trim());
+    sendMessage(supportConv.id, chatInput.trim(), undefined, {
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      senderRole: 'CUSTOMER',
+    });
     setChatInput('');
   };
 

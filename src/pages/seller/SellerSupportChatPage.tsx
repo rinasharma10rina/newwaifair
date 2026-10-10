@@ -8,6 +8,8 @@ import {
   Send,
   Image as ImageIcon,
   CheckCircle2,
+  Check,
+  CheckCheck,
   X,
   Headphones,
   Lock,
@@ -414,17 +416,15 @@ export const SellerSupportChatPage: React.FC<SellerSupportChatPageProps> = ({ on
 
                   {/* Attached Media Photo */}
                   {msg.imageUrl && (
-                    <div className="mb-1.5 rounded-xl overflow-hidden max-w-[280px] bg-slate-100">
-                      <img
-                        src={msg.imageUrl}
-                        ref={containerRef}
-          onScroll={onScroll}
-  alt="Attached media"
-                        onLoad={onMediaLoad}
-                        className="w-full h-auto object-cover max-h-72"
-                      />
-                    </div>
-                  )}
+                  <div className="mb-1.5 rounded-xl overflow-hidden max-w-[280px] bg-slate-100">
+                    <img
+                      src={msg.imageUrl}
+                      alt="Attached media"
+                      onLoad={onMediaLoad}
+                      className="w-full h-auto object-cover max-h-72"
+                    />
+                  </div>
+                )}
 
                   {/* Multi-line Formatted Message Body */}
                   {msg.text && (
@@ -433,7 +433,25 @@ export const SellerSupportChatPage: React.FC<SellerSupportChatPageProps> = ({ on
                     </p>
                   )}
 
-                  {/* NOTE: Timestamps, seen/read status, and delete options are strictly hidden for sellers as per requirements */}
+                  {/* Timestamp + Read/Seen tick marks (blue double tick when admin has read) */}
+                  <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-slate-500 select-none">
+                    <span>
+                      {new Date(msg.timestamp).toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true,
+                      })}
+                    </span>
+                    {!isCustomerCare && (
+                      <span className="flex items-center ml-0.5" title={msg.isRead ? 'Seen by admin' : 'Delivered'}>
+                        {msg.isRead ? (
+                          <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" strokeWidth={2.5} />
+                        ) : (
+                          <Check className="w-3.5 h-3.5 text-slate-400" strokeWidth={2.5} />
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );

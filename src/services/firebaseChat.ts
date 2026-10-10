@@ -40,20 +40,35 @@ export async function sendChatMessage(
 
   const normalizedRole = (senderRole || '').toLowerCase();
   const isSeller = normalizedRole === 'seller';
+  const isAdmin = normalizedRole === 'admin';
+  // Customer is any non-admin, non-seller sender (role could be 'customer', 'CUSTOMER', etc.)
+  const isCustomer = !isSeller && !isAdmin;
 
-  // Ek unique chat room ID banayein jo seller ki uid par based ho
-  let chatId = isSeller ? senderId : receiverId;
-  // If receiver is 'user_admin' or 'admin' and sender is seller, chatId is senderId
-  if (!chatId || chatId === 'user_admin' || chatId === 'admin') {
-    chatId = isSeller ? senderId : receiverId;
+  // 🎯 Chat ID rule:
+  // - Seller writes to their OWN thread → chatId = senderId
+  // - Customer writes to their OWN thread → chatId = senderId
+  // - Admin writes to the TARGET's thread → chatId = receiverId
+  const rawChatId = isAdmin ? receiverId : senderId;
+  const chatId = (rawChatId || '').replace(/^conv_/, '').trim();
+
+  // 🛡️ SAFETY GUARD: Reject bogus chat ids
+  const BOGUS_IDS = ['user_admin', 'admin', 'user_admin_legacy', ''];
+  if (!chatId || BOGUS_IDS.includes(chatId)) {
+    console.warn('[Firestore] sendChatMessage: refusing bogus chatId', { chatId, senderId, receiverId, senderRole });
+    return undefined;
+  }
+  // Admin must NEVER target themselves
+  if (isAdmin && (receiverId === 'user_admin' || receiverId === 'admin' || receiverId === senderId)) {
+    console.warn('[Firestore] sendChatMessage: refusing admin self-message', { senderId, receiverId });
+    return undefined;
   }
 
   const messageData: any = {
     senderId: senderId,
     receiverId: receiverId,
-    senderRole: isSeller ? 'seller' : 'admin',
+    senderRole: isSeller ? 'seller' : isAdmin ? 'admin' : 'customer',
     text: messageText || '',
-    senderName: extra?.senderName || (isSeller ? 'Seller' : 'Customer Care & Admin'),
+    senderName: extra?.senderName || (isSeller ? 'Seller' : isAdmin ? 'Customer Care & Admin' : 'Customer'),
     timestamp: serverTimestamp(),
   };
 
@@ -75,6 +90,7 @@ export async function sendChatMessage(
     // Last message update karein chat list preview ke liye
     const chatDocRef = doc(db, 'chats', chatId);
     const summaryText = messageText || (extra?.imageUrl ? '📷 Photo' : 'Message');
+    const participantOneRole = isSeller ? 'SELLER' : isAdmin ? 'ADMIN' : 'CUSTOMER';
     await setDoc(
       chatDocRef,
       {
@@ -84,8 +100,8 @@ export async function sendChatMessage(
         lastMessageTime: new Date().toISOString(),
         sellerId: chatId,
         participantOneId: chatId,
-        participantOneName: extra?.senderName || (isSeller ? 'Seller' : undefined),
-        participantOneRole: 'SELLER',
+        participantOneName: extra?.senderName || (isSeller ? 'Seller' : isAdmin ? 'Admin' : 'Customer'),
+        participantOneRole: participantOneRole,
         participantTwoId: 'user_admin',
         participantTwoName: 'Customer Care & Admin',
         participantTwoRole: 'ADMIN',
@@ -101,8 +117,8 @@ export async function sendChatMessage(
         id: msgDocId,
         conversationId: chatId,
         senderId,
-        senderName: extra?.senderName || (isSeller ? 'Seller' : 'Platform Support'),
-        senderRole: isSeller ? 'SELLER' : 'ADMIN',
+        senderName: extra?.senderName || (isSeller ? 'Seller' : isAdmin ? 'Platform Support' : 'Customer'),
+        senderRole: isSeller ? 'SELLER' : isAdmin ? 'ADMIN' : 'CUSTOMER',
         text: messageText,
         imageUrl: extra?.imageUrl || null,
         timestamp: new Date().toISOString(),
@@ -150,13 +166,22 @@ export function listenToChatMessages(
           }
 
           const roleStr = String(data.senderRole || '').toUpperCase();
-          const normalizedRole = roleStr === 'SELLER' ? 'SELLER' : 'ADMIN';
+          const normalizedRole =
+            roleStr === 'SELLER' ? 'SELLER'
+            : roleStr === 'CUSTOMER' ? 'CUSTOMER'
+            : 'ADMIN';
 
           messages.push({
             id: docSnap.id,
             conversationId: chatId,
             senderId: data.senderId || '',
-            senderName: data.senderName || (normalizedRole === 'SELLER' ? 'Seller' : 'Customer Care'),
+            senderName:
+              data.senderName ||
+              (normalizedRole === 'SELLER'
+                ? 'Seller'
+                : normalizedRole === 'CUSTOMER'
+                ? 'Customer'
+                : 'Customer Care'),
             senderRole: normalizedRole,
             text: data.text || '',
             imageUrl: data.imageUrl || undefined,
@@ -192,6 +217,17 @@ export function listenToAllChats(
         const list: any[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
+          const candidateSellerId = data.sellerId || data.participantOneId || docSnap.id;
+          // 🛡️ Skip bogus chat docs where the "seller" is actually the admin
+          if (
+            !candidateSellerId ||
+            candidateSellerId === 'user_admin' ||
+            candidateSellerId === 'admin' ||
+            candidateSellerId === 'user_admin_legacy' ||
+            (data.participantOneId === 'user_admin' && data.participantTwoId === 'user_admin')
+          ) {
+            return;
+          }
           list.push({
             id: docSnap.id,
             ...data,
@@ -271,6 +307,12 @@ export function listenToFirestoreMessages(
             }
           } else if (change.type === 'added' || change.type === 'modified') {
             const data = change.doc.data();
+            // 🛡️ Skip bogus messages — real conversations are ALWAYS with a seller userId,
+            // never with the admin's own id.
+            const convId = data.conversationId || '';
+            if (!convId || convId === 'user_admin' || convId === 'admin' || convId === 'user_admin_legacy') {
+              return;
+            }
             const msg: Message = {
               id: data.id || change.doc.id,
               conversationId: data.conversationId,
@@ -337,6 +379,15 @@ export function listenToFirestoreConversations(
         const convList: Conversation[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data() as Conversation;
+          // 🛡️ Skip bogus convs (same participants, both admin, or admin-as-participantOne)
+          if (
+            !data ||
+            data.participantOneId === data.participantTwoId ||
+            (data.participantOneRole === 'ADMIN' && data.participantTwoRole === 'ADMIN') ||
+            (data.participantOneId === 'user_admin' && data.participantTwoId === 'user_admin')
+          ) {
+            return;
+          }
           convList.push({
             ...data,
             id: docSnap.id,
@@ -536,13 +587,16 @@ export async function deleteAllChatMessages(chatId: string): Promise<void> {
  */
 export async function markChatMessagesAsRead(
   chatId: string,
-  readerRole: 'ADMIN' | 'SELLER'
+  readerRole: 'ADMIN' | 'SELLER' | 'CUSTOMER'
 ): Promise<void> {
   if (!db || !chatId) return;
 
   try {
-    const otherRoleLower = readerRole === 'ADMIN' ? 'seller' : 'admin';
-    const otherRoleUpper = readerRole === 'ADMIN' ? 'SELLER' : 'ADMIN';
+    const otherRoleLower =
+      readerRole === 'ADMIN' ? 'seller' : 'admin';
+    const otherRoleUpper =
+      readerRole === 'ADMIN' ? 'SELLER' : 'ADMIN';
+    // Customer reader is treated as "non-admin": marks messages from admin as read
 
     const rawId = chatId.trim();
     const cleanId = rawId.startsWith('conv_') ? rawId.replace(/^conv_/, '') : rawId;
@@ -559,10 +613,9 @@ export async function markChatMessagesAsRead(
           const data = docSnap.data();
           const sRole = String(data.senderRole || '').toLowerCase();
           const isFromOther =
-            sRole === otherRoleLower ||
-            sRole === otherRoleUpper.toLowerCase() ||
-            (readerRole === 'SELLER' && (data.senderRole === 'ADMIN' || data.senderId === 'user_admin' || sRole !== 'seller')) ||
-            (readerRole === 'ADMIN' && (data.senderRole === 'SELLER' || sRole === 'seller' || data.senderId !== 'user_admin'));
+            (readerRole === 'ADMIN' && (sRole === 'seller' || sRole === 'customer' || data.senderId !== 'user_admin')) ||
+            (readerRole === 'SELLER' && (sRole === 'admin' || data.senderId === 'user_admin')) ||
+            (readerRole === 'CUSTOMER' && (sRole === 'admin' || data.senderId === 'user_admin'));
 
           if (isFromOther && !data.isRead) {
             updates.push(updateDoc(docSnap.ref, { isRead: true }));

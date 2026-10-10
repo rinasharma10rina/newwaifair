@@ -105,6 +105,7 @@ import {
   listenToFirestoreProducts,
   listenToFirestoreCategories,
   seedInitialFirestoreCatalog,
+  isProductDeleted,
 } from '../services/firebaseProducts';
 import {
   saveSellerLoginSession,
@@ -664,6 +665,16 @@ export function deduplicateConversations(
   for (const conv of convList) {
     if (!conv || !conv.id) continue;
 
+    // 🛡️ Skip corrupted bogus conversations:
+    if (
+      conv.participantOneId === conv.participantTwoId ||
+      (conv.participantOneRole === 'ADMIN' && conv.participantTwoRole === 'ADMIN') ||
+      (conv.participantOneId === 'user_admin' && conv.participantTwoId === 'user_admin') ||
+      conv.id === 'user_admin' ||
+      conv.id === 'admin' ||
+      conv.id === 'user_admin_legacy'
+    ) continue;
+
     const targetId = conv.participantTwoRole === 'ADMIN' ? conv.participantOneId : conv.participantTwoId;
     const cleanTargetId = (targetId || '').replace(/^conv_/, '');
     const cleanConvId = (conv.id || '').replace(/^conv_/, '');
@@ -677,14 +688,11 @@ export function deduplicateConversations(
         s.id === conv.id ||
         s.userId === conv.id ||
         s.id === cleanConvId ||
-        s.userId === cleanConvId ||
-        (s.email && (conv.participantOneName || '').toLowerCase().includes(s.email.toLowerCase())) ||
-        (s.shopName && (conv.participantOneName || '').toLowerCase().includes(s.shopName.toLowerCase())) ||
-        (s.sellerName && (conv.participantOneName || '').toLowerCase().includes(s.sellerName.toLowerCase()))
+        s.userId === cleanConvId
     );
 
     const key = matchedSeller
-      ? `seller_${matchedSeller.id || matchedSeller.userId}`
+      ? `seller_${matchedSeller.userId || matchedSeller.id}`
       : `conv_${cleanConvId || cleanTargetId || conv.id}`;
 
     const existing = sellerKeyMap.get(key);
@@ -947,7 +955,9 @@ const [currentUser, setCurrentUser] = useState<User>(() => {
             ),
           }));
           const existingIds = new Set(cleanSaved.map((p) => p.id));
-          const missing = INITIAL_PRODUCTS.filter((p) => !existingIds.has(p.id));
+          const missing = INITIAL_PRODUCTS.filter(
+            (p) => !existingIds.has(p.id) && !isProductDeleted(p.id)
+          );
           if (missing.length > 0) {
             return [...missing, ...cleanSaved];
           }
@@ -1301,8 +1311,9 @@ const [currentUser, setCurrentUser] = useState<User>(() => {
               unreadCountParticipantTwo: !isSenderPartOne ? c.unreadCountParticipantTwo : c.unreadCountParticipantTwo + 1,
             };
             return updated;
-          } else {
-            // Add new conversation representation
+          } else if (incoming.senderRole === 'SELLER' || incoming.senderRole === 'CUSTOMER') {
+            // Create a new conversation when a SELLER or CUSTOMER initiates the message.
+            // Admin-initiated messages to unknown threads must NOT create fake convs.
             const newConv: Conversation = {
               id: incoming.conversationId,
               type: incoming.senderRole === 'SELLER' ? 'SELLER_ADMIN' : 'CUSTOMER_SUPPORT',
@@ -1315,10 +1326,12 @@ const [currentUser, setCurrentUser] = useState<User>(() => {
               lastMessageText: msgText,
               lastMessageTime: incoming.timestamp,
               unreadCountParticipantOne: 0,
-              unreadCountParticipantTwo: incoming.senderRole !== 'ADMIN' ? 1 : 0,
+              unreadCountParticipantTwo: 1,
             };
             return [newConv, ...prev];
           }
+          // Admin's message arrived for an unknown conversation → skip (don't create)
+          return prev;
         });
       },
       (deletedId) => {
@@ -1630,7 +1643,7 @@ const [currentUser, setCurrentUser] = useState<User>(() => {
         const liveMap = new Map(sanitizedLive.map((p) => [p.id, p]));
         const merged = [...sanitizedLive];
         for (const initP of INITIAL_PRODUCTS) {
-          if (!liveMap.has(initP.id)) {
+          if (!liveMap.has(initP.id) && !isProductDeleted(initP.id)) {
             merged.push(initP);
           }
         }
@@ -1854,6 +1867,93 @@ const [currentUser, setCurrentUser] = useState<User>(() => {
       }
     });
 
+        // 7b-boot. Boot fetch all customers from Firestore on mount
+    (async () => {
+      try {
+        const { db } = await import('../services/firebase');
+        if (!db) return;
+        const { collection, getDocs } = await import('firebase/firestore');
+        const snap = await getDocs(collection(db, 'customers'));
+        const bootCustomers: User[] = [];
+        snap.forEach((docSnap) => {
+          const data = docSnap.data() as any;
+          if (data && data.role === 'CUSTOMER') {
+            bootCustomers.push({
+              id: docSnap.id,
+              email: data.email || '',
+              name: data.name || 'Customer',
+              phone: data.phone || '',
+              role: 'CUSTOMER',
+              avatar: data.avatar || '',
+              createdAt: data.createdAt || new Date().toISOString(),
+            });
+          }
+        });
+        if (bootCustomers.length > 0) {
+          console.log('[Firestore] Boot-loaded customers:', bootCustomers.length);
+          setUsers((prevUsers) => {
+            const map = new Map<string, User>(prevUsers.map((u) => [u.id, u]));
+            bootCustomers.forEach((c) => {
+              const existing = map.get(c.id);
+              map.set(c.id, existing ? { ...existing, ...c } : c);
+            });
+            const merged = Array.from(map.values());
+            try { localStorage.setItem('nexus_users', JSON.stringify(merged)); } catch {}
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn('[Firestore] Customer boot fetch error:', err);
+      }
+    })();
+
+    // 7c. Real-time sync customers collection from Firestore
+    let unsubCustomers: (() => void) | null = null;
+    (async () => {
+      try {
+        const { db } = await import('../services/firebase');
+        if (!db) return;
+        const { collection, onSnapshot } = await import('firebase/firestore');
+        const customersCol = collection(db, 'customers');
+        unsubCustomers = onSnapshot(
+          customersCol,
+          (snap) => {
+            const firestoreCustomers: User[] = [];
+            snap.forEach((docSnap) => {
+              const data = docSnap.data() as any;
+              if (data && data.role === 'CUSTOMER') {
+                firestoreCustomers.push({
+                  id: docSnap.id,
+                  email: data.email || '',
+                  name: data.name || 'Customer',
+                  phone: data.phone || '',
+                  role: 'CUSTOMER',
+                  avatar: data.avatar || '',
+                  createdAt: data.createdAt || new Date().toISOString(),
+                });
+              }
+            });
+            if (firestoreCustomers.length > 0) {
+              console.log('[Firestore] Synced customers:', firestoreCustomers.length);
+              setUsers((prevUsers) => {
+                const userMap = new Map<string, User>(prevUsers.map((u) => [u.id, u]));
+                firestoreCustomers.forEach((c) => {
+                  const existing = userMap.get(c.id);
+                  userMap.set(c.id, existing ? { ...existing, ...c } : c);
+                });
+                return Array.from(userMap.values());
+              });
+            }
+          },
+          (err) => {
+            console.warn('[Firestore] Customers listener notice:', err);
+          }
+        );
+      } catch (err) {
+        console.warn('[Firestore] Customers listener setup error:', err);
+      }
+    })();
+
     // 8. Real-time Firestore sync for withdrawals
     const unsubWithdrawals = listenToFirestoreWithdrawals((liveWithdrawals) => {
       if (liveWithdrawals && liveWithdrawals.length > 0) {
@@ -1911,6 +2011,7 @@ const [currentUser, setCurrentUser] = useState<User>(() => {
       unsubContacts();
       unsubSubscriptionPlan();
       unsubWithdrawals();
+      if (unsubCustomers) unsubCustomers();
     };
   }, []);
 
@@ -2237,9 +2338,9 @@ const logoutUser = (reason?: string) => {
 const registerCustomer = (name: string, email: string, phone: string): User => {
   const newUser: User = {
     id: `user_cust_${Date.now()}`,
-    email,
-    name,
-    phone,
+    email: email.trim().toLowerCase(),
+    name: name.trim(),
+    phone: (phone || '').trim(),
     role: 'CUSTOMER',
     avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80`,
     createdAt: new Date().toISOString(),
@@ -2247,6 +2348,33 @@ const registerCustomer = (name: string, email: string, phone: string): User => {
   setUsers((prev) => [...prev, newUser]);
   loginCustomer(newUser);
   addNotification('user_admin', 'New Customer Registration', `${name} registered on the platform.`, 'SYSTEM');
+
+  // 🆕 Persist customer to Firestore so admin can see them across devices
+  (async () => {
+    try {
+      const { db } = await import('../services/firebase');
+      if (!db) return;
+      const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+      await setDoc(
+        doc(db, 'customers', newUser.id),
+        {
+          id: newUser.id,
+          email: newUser.email,
+          name: newUser.name,
+          phone: newUser.phone || '',
+          role: 'CUSTOMER',
+          avatar: newUser.avatar || '',
+          createdAt: newUser.createdAt,
+          _syncedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      console.log('[Firestore] Customer saved:', newUser.id);
+    } catch (err) {
+      console.error('[Firestore] Customer sync FAILED:', err);
+    }
+  })();
+
   return newUser;
 };
 
@@ -5367,24 +5495,68 @@ const registerCustomer = (name: string, email: string, phone: string): User => {
     // 1. Sync to Firestore using sendChatMessage (writes to chats/{chatId}/messages subcollection)
     const existingConv = conversations.find((c) => c.id === conversationId);
     const isSeller = senderRole === 'SELLER';
-    const receiverId = isSeller
-      ? (existingConv?.participantTwoId || 'user_admin')
-      : (existingConv?.participantOneId || conversationId);
+    const isAdmin = senderRole === 'ADMIN';
+    // Customer is anyone who is NEITHER seller nor admin
+    const isCustomer = !isSeller && !isAdmin;
+
+    let receiverId: string;
+    if (isSeller || isCustomer) {
+      // Seller AND Customer both talk TO the admin. Their chat thread uses
+      // their OWN userId as the chatId (which equals senderId).
+      receiverId = 'user_admin';
+    } else {
+      // isAdmin — must route to a REAL SELLER or CUSTOMER's userId
+      const targetCandidates: Array<string | undefined> = [
+        existingConv?.participantOneId,
+        existingConv?.participantTwoId,
+        ...conversations
+          .filter((c) => c.id === conversationId || c.participantOneId === conversationId || c.participantTwoId === conversationId)
+          .map((c) => (c.participantOneRole !== 'ADMIN' ? c.participantOneId : c.participantTwoId)),
+      ];
+      let resolvedTargetId: string | undefined;
+      for (const candidate of targetCandidates) {
+        if (!candidate) continue;
+        if (candidate === 'user_admin' || candidate === 'admin' || candidate === 'user_admin_legacy') continue;
+        // Check sellers first, then customers (users with role CUSTOMER)
+        const seller = sellers.find((s) => s.id === candidate || s.userId === candidate);
+        if (seller?.userId) { resolvedTargetId = seller.userId; break; }
+        if (seller?.id) { resolvedTargetId = seller.id; break; }
+        const customer = users.find((u) => u.id === candidate && u.role === 'CUSTOMER');
+        if (customer?.id) { resolvedTargetId = customer.id; break; }
+        if (!resolvedTargetId) { resolvedTargetId = candidate; }
+      }
+      receiverId = resolvedTargetId || conversationId;
+
+      // 🛡️ Final safety guard
+      if (receiverId === 'user_admin' || receiverId === 'admin' || receiverId === senderId) {
+        console.warn('[sendMessage] Admin send aborted — no valid target for conv', conversationId);
+        const abortedMsg: Message = {
+          id: `msg_aborted_${Date.now()}`,
+          conversationId, senderId, senderName, senderRole,
+          text, imageUrl,
+          timestamp: new Date().toISOString(),
+          isRead: false,
+        };
+        return abortedMsg;
+      }
+    }
+
+    const roleForFirestore =
+      senderRole === 'SELLER' ? 'seller'
+      : senderRole === 'ADMIN' ? 'admin'
+      : 'customer';
 
     sendChatMessage(
       senderId,
       receiverId,
       text,
-      isSeller ? 'seller' : 'admin',
+      roleForFirestore,
       {
         imageUrl,
         senderName,
         messageId: newMsg.id,
       }
     ).catch((err) => console.warn('[Firestore] sendChatMessage error:', err));
-
-    // Also mirror to syncMessageToFirestore for backward compatibility
-    syncMessageToFirestore(newMsg, existingConv);
 
     // 2. Broadcast across local browser tabs
     try {
@@ -5440,7 +5612,7 @@ const registerCustomer = (name: string, email: string, phone: string): User => {
     if (!resolvedName) {
       resolvedName = sellerMatch?.shopName || sellerMatch?.sellerName || currentUser.name || 'Merchant';
     }
-    const cleanSellerId = sellerMatch?.id || sellerMatch?.userId || userId;
+    const cleanSellerId = sellerMatch?.userId || sellerMatch?.id || userId;
 
     const existing = conversations.find(
       (c) =>
