@@ -332,6 +332,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   // Support conversation state
   const [activeConvId, setActiveConvId] = useState<string>(conversations[0]?.id || '');
   const [adminChatInput, setAdminChatInput] = useState('');
+  const [adminChatImage, setAdminChatImage] = useState<string | null>(null);
+  const adminChatFileRef = useRef<HTMLInputElement>(null);
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [showSellerPicker, setShowSellerPicker] = useState(false);
   const [deleteConfirmConvId, setDeleteConfirmConvId] = useState<string | null>(null);
@@ -548,11 +550,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   };
 
   // Auto-select first conversation if none selected
-  useEffect(() => {
-    if ((!activeConvId || !conversations.some((c) => c.id === activeConvId)) && conversations.length > 0) {
-      setActiveConvId(conversations[0].id);
-    }
-  }, [conversations, activeConvId]);
 
   // Audio Notification Watcher: Beep on any incoming message from a seller (regardless of active tab)
   const [soundEnabledState, setSoundEnabledState] = useState<boolean>(() => isSoundEnabled());
@@ -913,6 +910,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       .sort((a, b) => new Date(b.lastMessageTime || 0).getTime() - new Date(a.lastMessageTime || 0).getTime());
   }, [conversations, sellers, users]);
 
+  // 🎯 Auto-select first unified conversation if none selected
+  // (Must run AFTER unifiedConversations is defined)
+  useEffect(() => {
+    if (!activeConvId) {
+      if (unifiedConversations.length > 0) {
+        setActiveConvId(unifiedConversations[0].id);
+      }
+      return;
+    }
+    // Validate: does activeConvId exist in unified set OR its alias list?
+    const isValid =
+      unifiedConversations.length === 0 ||
+      unifiedConversations.some(
+        (c) =>
+          c.id === activeConvId ||
+          (c as any).allConvIds?.includes(activeConvId)
+      );
+    if (!isValid && unifiedConversations.length > 0) {
+      setActiveConvId(unifiedConversations[0].id);
+    }
+  }, [unifiedConversations, activeConvId]);
+
   const filteredConversations = useMemo(() => {
     return unifiedConversations.filter((c) => {
       const name = (c.participantOneName || '').toLowerCase();
@@ -943,7 +962,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
   const handleSendAdminMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!adminChatInput.trim() || !activeConvId) return;
+    if ((!adminChatInput.trim() && !adminChatImage) || !activeConvId) return;
 
     // 🛡️ Resolve the REAL seller chat id from the unified conversation
     const currentUnifiedConv = unifiedConversations.find(
@@ -955,15 +974,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       currentUnifiedConv?.participantOneId ||
       activeConvId;
 
-    sendMessage(resolvedSellerId, adminChatInput.trim(), undefined, {
-      senderId: 'user_admin',
-      senderName: 'Platform Support Team',
-      senderRole: 'ADMIN',
-    });
+    sendMessage(
+      resolvedSellerId,
+      adminChatInput.trim(),
+      adminChatImage || undefined,
+      {
+        senderId: 'user_admin',
+        senderName: 'Platform Support Team',
+        senderRole: 'ADMIN',
+      }
+    );
     setAdminChatInput('');
+    setAdminChatImage(null);
     if (adminTextareaRef.current) {
       adminTextareaRef.current.style.height = 'auto';
     }
+  };
+
+  // 📷 Handle image selection for admin chat
+  const handleAdminChatImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAdminChatImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const handleAdminChatKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -4408,7 +4445,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
                         {/* WhatsApp Style Chat Input for Admin */}
                         <div className="p-2.5 sm:p-3 bg-[#f0f2f5] border-t border-slate-200 shrink-0">
+                          {/* 🆕 Attached image preview */}
+                          {adminChatImage && (
+                            <div className="px-1 pb-2 flex items-center gap-2">
+                              <div className="relative">
+                                <img
+                                  src={adminChatImage}
+                                  alt="Preview"
+                                  className="w-16 h-16 object-cover rounded-xl border-2 border-[#00a884] shadow-2xs"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setAdminChatImage(null)}
+                                  className="absolute -top-1.5 -right-1.5 bg-slate-700 hover:bg-slate-900 text-white rounded-full p-0.5 cursor-pointer shadow-xs"
+                                  title="Remove image"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <span className="text-[11px] text-slate-600 font-medium">Ready to send photo</span>
+                            </div>
+                          )}
                           <div className="flex items-end gap-2 max-w-4xl">
+                            {/* Hidden file input */}
+                            <input
+                              type="file"
+                              ref={adminChatFileRef}
+                              accept="image/*"
+                              onChange={handleAdminChatImageSelect}
+                              className="hidden"
+                            />
+                            {/* 🆕 Image attach button */}
+                            <button
+                              type="button"
+                              onClick={() => adminChatFileRef.current?.click()}
+                              title="Attach photo"
+                              aria-label="Attach photo"
+                              className="p-2 text-[#54656f] hover:text-[#111b21] hover:bg-slate-200/60 rounded-full transition-colors cursor-pointer shrink-0 mb-0.5"
+                            >
+                              <ImageIcon className="w-5 h-5" />
+                            </button>
+
                             {/* WhatsApp White Textarea Container */}
                             <div className="flex-1 bg-white border border-slate-300 rounded-2xl px-3.5 py-1.5 shadow-2xs flex items-center focus-within:ring-2 focus-within:ring-[#00a884]/40 transition-all">
                               <textarea
@@ -4428,7 +4505,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                             <button
                               type="button"
                               onClick={() => handleSendAdminMessage()}
-                              disabled={!adminChatInput.trim()}
+                              disabled={!adminChatInput.trim() && !adminChatImage}
                               title="Send message (Enter)"
                               aria-label="Send message"
                               className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#02906f] disabled:opacity-40 text-white flex items-center justify-center font-bold transition-all cursor-pointer disabled:cursor-not-allowed shrink-0 active:scale-95 shadow-sm mb-0.5"

@@ -12,6 +12,7 @@ import {
   getDocs,
   where,
   updateDoc,
+  increment,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Message, Conversation, NotificationItem } from '../types';
@@ -105,6 +106,12 @@ export async function sendChatMessage(
         participantTwoId: 'user_admin',
         participantTwoName: 'Customer Care & Admin',
         participantTwoRole: 'ADMIN',
+        // 🎯 NEW MESSAGE → increment the recipient's unread counter
+        // If ADMIN is sending → recipient is seller/customer → bump unreadCountParticipantOne
+        // If SELLER/CUSTOMER is sending → recipient is admin → bump unreadCountParticipantTwo
+        ...(isAdmin
+          ? { unreadCountParticipantOne: increment(1) }
+          : { unreadCountParticipantTwo: increment(1) }),
       },
       { merge: true }
     );
@@ -644,11 +651,12 @@ export async function markChatMessagesAsRead(
       // 3. Clear unread counts on the conversation document itself
       try {
         const chatDocRef = doc(db, 'chats', cId);
-        if (readerRole === 'ADMIN') {
-          updates.push(updateDoc(chatDocRef, { unreadAdmin: 0, unreadCountParticipantTwo: 0 }).catch(() => {}));
-        } else {
-          updates.push(updateDoc(chatDocRef, { unreadSeller: 0, unreadCountParticipantOne: 0 }).catch(() => {}));
-        }
+        const unreadReset =
+          readerRole === 'ADMIN'
+            ? { unreadAdmin: 0, unreadCountParticipantTwo: 0, updatedAt: serverTimestamp() }
+            : { unreadSeller: 0, unreadCountParticipantOne: 0, updatedAt: serverTimestamp() };
+        // Use setDoc merge so it works even if the parent chat doc is missing
+        updates.push(setDoc(chatDocRef, unreadReset, { merge: true }).catch(() => {}));
       } catch {}
     }
 

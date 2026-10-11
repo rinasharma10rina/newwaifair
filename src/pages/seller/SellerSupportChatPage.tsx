@@ -224,9 +224,20 @@ export const SellerSupportChatPage: React.FC<SellerSupportChatPageProps> = ({ on
   };
 
   return (
-    <div className="fixed inset-0 h-screen h-[100dvh] w-full bg-slate-200/80 flex flex-col items-center justify-center p-0 sm:p-3 md:p-5 overflow-hidden z-30 text-slate-800">
+    <div
+      className="fixed inset-0 h-screen w-full bg-slate-200/80 flex flex-col items-center justify-center p-0 sm:p-3 md:p-5 overflow-hidden z-30 text-slate-800"
+      style={{
+        height: '100vh',
+        maxHeight: '100vh',
+        // Progressive enhancement — modern browsers use dvh, older fall back to vh
+        ['--chat-vh' as any]: '100vh',
+      }}
+    >
       {/* WhatsApp Frame Container (Pinned / Fixed in Viewport so only chat messages scroll) */}
-      <div className="w-full max-w-4xl bg-white sm:rounded-3xl shadow-2xl flex flex-col h-full max-h-full sm:max-h-[calc(100dvh-2.5rem)] border border-slate-300/80 overflow-hidden relative font-sans">
+      <div
+        className="w-full max-w-4xl bg-white sm:rounded-3xl shadow-2xl flex flex-col h-full max-h-full sm:max-h-[calc(100dvh-2.5rem)] border border-slate-300/80 overflow-hidden relative font-sans"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}
+      >
         
         {/* ========================================================= */}
         {/* 1. TOP HEADER - WHATSAPP GREEN THEME (#008069)            */}
@@ -496,7 +507,10 @@ export const SellerSupportChatPage: React.FC<SellerSupportChatPageProps> = ({ on
         {/* ========================================================= */}
         {/* 4. BOTTOM INPUT BAR - WHATSAPP STYLE & MULTI-LINE         */}
         {/* ========================================================= */}
-        <div className="bg-[#f0f2f5] border-t border-slate-200 p-2.5 sm:p-3 shrink-0">
+        <div
+          className="bg-[#f0f2f5] border-t border-slate-200 p-2.5 sm:p-3 shrink-0"
+          style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom, 0px))' }}
+        >
           <div className="flex items-end gap-2 max-w-4xl mx-auto">
             {/* Image / Gallery Upload Icon */}
             <input

@@ -1371,8 +1371,16 @@ const [currentUser, setCurrentUser] = useState<User>(() => {
               participantTwoRole: 'ADMIN',
               lastMessageText: chat.lastMessage || chat.lastMessageText || 'Chat thread opened',
               lastMessageTime: chat.lastMessageTime || new Date().toISOString(),
-              unreadCountParticipantOne: 0,
-              unreadCountParticipantTwo: chat.lastMessage ? 1 : 0,
+              unreadCountParticipantOne:
+                typeof chat.unreadCountParticipantOne === 'number'
+                  ? chat.unreadCountParticipantOne
+                  : 0,
+              unreadCountParticipantTwo:
+                typeof chat.unreadCountParticipantTwo === 'number'
+                  ? chat.unreadCountParticipantTwo
+                  : chat.lastMessage
+                  ? 1
+                  : 0,
             };
             map.set(chat.id, conv);
           });
@@ -5671,30 +5679,79 @@ const registerCustomer = (name: string, email: string, phone: string): User => {
   };
 
   const markConversationAsRead = (conversationId: string, readerRole: UserRole) => {
+    // Update local conversation unread counts
     setConversations((prev) =>
       prev.map((c) => {
-        if (c.id === conversationId) {
-          if (c.participantOneRole === readerRole) {
-            return { ...c, unreadCountParticipantOne: 0 };
-          } else {
-            return { ...c, unreadCountParticipantTwo: 0 };
-          }
+        const matches =
+          c.id === conversationId ||
+          c.id === conversationId.replace(/^conv_/, '') ||
+          c.id === `conv_${conversationId.replace(/^conv_/, '')}` ||
+          c.participantOneId === conversationId ||
+          c.participantTwoId === conversationId;
+        if (!matches) return c;
+        if (c.participantOneRole === readerRole) {
+          return { ...c, unreadCountParticipantOne: 0 };
         }
-        return c;
+        return { ...c, unreadCountParticipantTwo: 0 };
       })
     );
+
+    // Update local messages
     setMessages((prev) =>
-      prev.map((m) =>
-        m.conversationId === conversationId && m.senderRole !== readerRole
-          ? { ...m, isRead: true }
-          : m
-      )
+      prev.map((m) => {
+        const msgMatchesConv =
+          m.conversationId === conversationId ||
+          m.conversationId === conversationId.replace(/^conv_/, '') ||
+          m.conversationId === `conv_${conversationId.replace(/^conv_/, '')}`;
+        if (msgMatchesConv && m.senderRole !== readerRole) {
+          return { ...m, isRead: true };
+        }
+        return m;
+      })
     );
 
-    // Sync read status to Firestore
-    markChatMessagesAsRead(conversationId, readerRole === 'ADMIN' ? 'ADMIN' : 'SELLER').catch((err) =>
-      console.warn('[Firestore] Error marking messages read:', err)
+    // 🎯 Compute candidate IDs — seller.id / seller.userId mismatch coverage
+    const conv = conversations.find(
+      (c) => c.id === conversationId || c.participantOneId === conversationId || c.participantTwoId === conversationId
     );
+    const otherParticipantId = conv
+      ? conv.participantOneRole === 'ADMIN'
+        ? conv.participantTwoId
+        : conv.participantOneId
+      : conversationId;
+
+    const candidateSet = new Set<string>();
+    if (conversationId) candidateSet.add(conversationId);
+    if (otherParticipantId) candidateSet.add(otherParticipantId);
+    const cleanConvId = conversationId.replace(/^conv_/, '');
+    const cleanOtherId = (otherParticipantId || '').replace(/^conv_/, '');
+    if (cleanConvId) {
+      candidateSet.add(cleanConvId);
+      candidateSet.add(`conv_${cleanConvId}`);
+    }
+    if (cleanOtherId) {
+      candidateSet.add(cleanOtherId);
+      candidateSet.add(`conv_${cleanOtherId}`);
+    }
+
+    // Match seller / customer by id or userId
+    const sellerMatch = sellers.find(
+      (s) => s.id === otherParticipantId || s.userId === otherParticipantId
+    );
+    if (sellerMatch?.id) candidateSet.add(sellerMatch.id);
+    if (sellerMatch?.userId) candidateSet.add(sellerMatch.userId);
+
+    const candidateIds = Array.from(candidateSet).filter(Boolean);
+
+    // 🎯 Map reader role to Firestore role
+    const roleForFirestore: 'ADMIN' | 'SELLER' | 'CUSTOMER' =
+      readerRole === 'ADMIN' ? 'ADMIN' : readerRole === 'SELLER' ? 'SELLER' : 'CUSTOMER';
+
+    candidateIds.forEach((cid) => {
+      markChatMessagesAsRead(cid, roleForFirestore).catch((err) =>
+        console.warn('[Firestore] Error marking messages read:', err)
+      );
+    });
 
     // Broadcast across tabs
     try {
